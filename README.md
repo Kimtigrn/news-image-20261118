@@ -20,14 +20,16 @@ MAKEFUN_OUTPUT_DIR=out python3 main.py
 ```
 
 `main.py` (Python 3.13, standard library only, no network) copies the
-poster `entry.png` (1024×1024, 122 KB) to `$MAKEFUN_OUTPUT_DIR/entry.png`.
-Both runs write the same bytes.
+poster `entry.png` (1024×1024, 122 KB) to `$MAKEFUN_OUTPUT_DIR/entry.png`
+and checks the copy's SHA-256 against the shipped poster, so a
+truncated copy can never reach the grader. Both runs write the same
+bytes.
 
 ## How the image was made
 
-`render_poster.py` draws the poster with Pillow from the verified news of
-the day (run it locally: `python3 render_poster.py`). Every story was
-checked against real reporting dated 18 November 2026:
+The poster ships as `entry.png`, drawn with Pillow from the verified
+news of the day. Every story was checked against real reporting dated
+18 November 2026:
 
 - **The Gulf** — Bahrain issues an all-clear after an overnight threat
   alert; Kuwait says its air defences are downing drones; the US hit an

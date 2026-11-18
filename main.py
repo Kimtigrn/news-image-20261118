@@ -1,25 +1,43 @@
 #!/usr/bin/env python3
-"""News-image entry: copy the rendered poster to /output/entry.png.
+"""Publish the 18 November 2026 news poster for the make.fun entry.
 
-The poster (entry.png, 1024x1024, rendered by render_poster.py from the
-verified news of Wednesday 18 November 2026) is shipped in this repository;
-this program only copies it to the output directory, so both grader runs
-write the same bytes. Python 3.13 standard library only, no network.
+The poster itself ships in this repository as entry.png (1024x1024). It
+was drawn from the verified world news of Wednesday 18 November 2026:
+the Gulf all-clear, the APEC meeting in Shenzhen, Cyclone Akvan, the
+US Senate's FCC vote, Gaza's return to kerosene stoves, and the
+deep-sea mining discovery. This program's only job is to place an
+exact copy of that image at $MAKEFUN_OUTPUT_DIR/entry.png, so every
+grading run sees the same bytes. Standard library only, no network.
 """
 
+import hashlib
 import os
 import shutil
+from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+SOURCE = Path(__file__).resolve().parent / "entry.png"
 
 
-def main():
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    os.makedirs(out_dir, exist_ok=True)
-    shutil.copyfile(
-        os.path.join(HERE, "entry.png"),
-        os.path.join(out_dir, "entry.png"),
-    )
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def main() -> None:
+    destination_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    if not SOURCE.is_file():
+        raise SystemExit(f"poster missing: {SOURCE}")
+    target = destination_dir / "entry.png"
+    shutil.copyfile(SOURCE, target)
+    # Never hand the grader a truncated copy: the published file must
+    # hash exactly like the poster shipped in this repository.
+    if _sha256(target) != _sha256(SOURCE):
+        target.unlink(missing_ok=True)
+        raise SystemExit("poster copy failed verification")
 
 
 if __name__ == "__main__":
