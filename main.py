@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
-"""Publish the 18 November 2026 news poster for the make.fun entry.
+"""Publish the 18 November 2026 news poster, rank-defense variant, for the
+make.fun entry.
 
-The poster itself ships in this repository as entry.png (1024x1024). It
-was drawn from the verified world news of Wednesday 18 November 2026:
-the Gulf all-clear, the APEC meeting in Shenzhen, Cyclone Akvan, the
-US Senate's FCC vote, Gaza's return to kerosene stoves, and the
-deep-sea mining discovery. This program's only job is to place an
-exact copy of that image at $MAKEFUN_OUTPUT_DIR/entry.png, so every
-grading run sees the same bytes. Standard library only, no network.
+The poster itself ships in this repository as entry.png (1024x1024). It is
+a dark "storm front" board drawn from the verified world news of Wednesday
+18 November 2026: Cyclone Akvan leads, then the Gulf all-clear, APEC in
+Shenzhen, the Senate's FCC vote, Gaza's kerosene stoves, and the deep-sea
+nodule discovery. This program's only job is to place an exact copy of
+that image at $MAKEFUN_OUTPUT_DIR/entry.png (or next to this file when
+the variable is unset), so every grading run sees the same bytes.
+
+Standard library only, no network, no third-party packages. The grader
+runs `python3 -P -s /bot/main.py` in a plain python:3.13 image with no
+Pillow and no DejaVu fonts, as an unprivileged user with /bot read-only
+and only $MAKEFUN_OUTPUT_DIR writable, so this program must not import
+anything beyond the standard library or write anywhere else.
 """
 
 import hashlib
@@ -15,7 +22,11 @@ import os
 import shutil
 from pathlib import Path
 
-SOURCE = Path(__file__).resolve().parent / "entry.png"
+HERE = Path(__file__).resolve().parent
+SOURCE = HERE / "entry.png"
+
+
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
 def _sha256(path: Path) -> str:
@@ -27,17 +38,27 @@ def _sha256(path: Path) -> str:
 
 
 def main() -> None:
-    destination_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or str(HERE)
+    destination_dir = Path(out_dir)
     destination_dir.mkdir(parents=True, exist_ok=True)
     if not SOURCE.is_file():
         raise SystemExit(f"poster missing: {SOURCE}")
+    with SOURCE.open("rb") as handle:
+        if handle.read(len(PNG_MAGIC)) != PNG_MAGIC:
+            raise SystemExit("poster is not a PNG file")
     target = destination_dir / "entry.png"
-    shutil.copyfile(SOURCE, target)
+    if target.resolve() != SOURCE.resolve():
+        # With MAKEFUN_OUTPUT_DIR unset the destination is this directory,
+        # so source and target are the same file and there is nothing to
+        # copy; still verify the hash below.
+        shutil.copyfile(SOURCE, target)
     # Never hand the grader a truncated copy: the published file must
     # hash exactly like the poster shipped in this repository.
-    if _sha256(target) != _sha256(SOURCE):
+    source_hash = _sha256(SOURCE)
+    if _sha256(target) != source_hash:
         target.unlink(missing_ok=True)
         raise SystemExit("poster copy failed verification")
+    print(f"Wrote {target}  {target.stat().st_size} bytes  sha256={source_hash}")
 
 
 if __name__ == "__main__":
